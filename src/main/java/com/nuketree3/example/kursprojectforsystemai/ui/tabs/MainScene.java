@@ -1,6 +1,7 @@
 package com.nuketree3.example.kursprojectforsystemai.ui.tabs;
 
 import com.nuketree3.example.kursprojectforsystemai.domain.ShipParameters;
+import com.nuketree3.example.kursprojectforsystemai.service.AICalculator;
 import com.nuketree3.example.kursprojectforsystemai.service.Calculator;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -15,9 +16,12 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.ArcType;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import javafx.scene.*;
+import java.util.List;
+import javafx.scene.shape.Circle;
 import lombok.Setter;
 
-public class MainTab{
+public class MainScene {
     private TextField shipLengthTextField;
     private TextField shipWidthTextField;
     private TextField draftOfTheShipTextField;
@@ -31,13 +35,17 @@ public class MainTab{
 
     @Setter
     private Calculator calculator;
-    private ShipParameters shipParameters;
 
     private Canvas polarChartCanvas;
     private GraphicsContext gc;
     private Text speedInfoText;
     private Text angleInfoText;
 
+    private LineChart<Number, Number> chartTheta;
+    private LineChart<Number, Number> chartPsi;
+    private LineChart<Number, Number> chartMainRes;
+    private LineChart<Number, Number> chartParamRes;
+    private LineChart<Number, Number> chartMainPitch;
 
     public BorderPane createContent() {
         BorderPane mainContainer = new BorderPane();
@@ -72,15 +80,15 @@ public class MainTab{
         inputGrid.setVgap(8);
         inputGrid.setHgap(10);
 
-        shipLengthTextField = createInputField(inputGrid, "Длина корабля (м):", "100", 0);
-        shipWidthTextField = createInputField(inputGrid, "Ширина корабля (м):", "20", 1);
-        draftOfTheShipTextField = createInputField(inputGrid, "Осадка корабля (м):", "8", 2);
-        metacentricHeightTextField = createInputField(inputGrid, "Метацентрическая высота (м):", "1.5", 3);
-        shipSpeedTextField = createInputField(inputGrid, "Скорость корабля (узлы):", "18", 4);
-        headingAngleTextField = createInputField(inputGrid, "Курсовой угол (°):", "110", 5);
-        waveLengthTextField = createInputField(inputGrid, "Длина волны (м):", "150", 6);
+        shipLengthTextField = createInputField(inputGrid, "Длина корабля (м):", "40", 0);
+        shipWidthTextField = createInputField(inputGrid, "Ширина корабля (м):", "8", 1);
+        draftOfTheShipTextField = createInputField(inputGrid, "Осадка корабля (м):", "3.4", 2);
+        metacentricHeightTextField = createInputField(inputGrid, "Метацентрическая высота (м):", "0.5", 3);
+        shipSpeedTextField = createInputField(inputGrid, "Скорость корабля (узлы):", "11", 4);
+        headingAngleTextField = createInputField(inputGrid, "Курсовой угол (°):", "130", 5);
+        waveLengthTextField = createInputField(inputGrid, "Длина волны (м):", "40", 6);
         amplitudeOfTheOnBoardPitchingTextField = createInputField(inputGrid, "Амплитуда бортовой качки (°):", "15", 7);
-        pitchingAmplitudeTextField = createInputField(inputGrid, "Амплитуда килевой качки (°):", "5", 8);
+        pitchingAmplitudeTextField = createInputField(inputGrid, "Амплитуда килевой качки (°):", "3", 8);
 
         Button calculateButton = new Button("Произвести расчеты");
         calculateButton.setMaxWidth(Double.MAX_VALUE);
@@ -129,35 +137,36 @@ public class MainTab{
 
         polarChartCanvas = new Canvas(900, 550);
         gc = polarChartCanvas.getGraphicsContext2D();
-        drawHalfPolarDiagram(gc, 450, 460, 380);
+        drawEmptyPolarDiagram();
 
         HBox infoBox = new HBox(20);
         infoBox.setAlignment(Pos.CENTER);
         infoBox.setPadding(new Insets(5, 0, 0, 0));
 
         StackPane legendDot = new StackPane();
-        javafx.scene.shape.Circle circle = new javafx.scene.shape.Circle(6, Color.RED);
+        Circle circle = new Circle(6, Color.RED);
         circle.setStroke(Color.BLACK);
         circle.setStrokeWidth(1);
         legendDot.getChildren().add(circle);
 
-        Text legendText = new Text("текущее положение судна");
-        legendText.setFont(Font.font("Arial", 12));
-
-        speedInfoText = new Text("V = 18.0 уз");
+        speedInfoText = new Text("V = 15.0 уз");
         speedInfoText.setFont(Font.font("Arial", 12));
 
-        angleInfoText = new Text("φ = 110.0°");
+        angleInfoText = new Text("φ = 45.0°");
         angleInfoText.setFont(Font.font("Arial", 12));
 
-        infoBox.getChildren().addAll(legendDot, legendText, speedInfoText, angleInfoText);
+        infoBox.getChildren().addAll(legendDot, speedInfoText, angleInfoText);
 
         chartArea.getChildren().addAll(title, polarChartCanvas, infoBox);
         return chartArea;
     }
 
-    private void drawHalfPolarDiagram(GraphicsContext gc, double centerX, double centerY, double radius) {
+    private void drawEmptyPolarDiagram() {
         gc.clearRect(0, 0, 900, 550);
+
+        double centerX = 450;
+        double centerY = 460;
+        double radius = 380;
 
         gc.setStroke(Color.LIGHTGRAY);
         gc.setLineWidth(0.5);
@@ -168,12 +177,12 @@ public class MainTab{
 
             double speed = i * 5;
             gc.setFill(Color.BLACK);
-            gc.setFont(javafx.scene.text.Font.font("Arial", 10));
+            gc.setFont(Font.font("Arial", 10));
             gc.fillText(speed + " уз", centerX, centerY - r - 5);
         }
 
         double[] angles = {0, 30, 60, 90, 120, 150, 180};
-        gc.setFont(javafx.scene.text.Font.font("Arial", 11));
+        gc.setFont(Font.font("Arial", 11));
         for (double angle : angles) {
             double rad = Math.toRadians(angle);
             double x = centerX + radius * Math.cos(rad);
@@ -204,31 +213,27 @@ public class MainTab{
             gc.fillText(angle + "°", labelX + offsetX, labelY + offsetY);
         }
 
-        gc.setStroke(Color.BLACK);
-        gc.setLineWidth(1.2);
-        gc.strokeLine(centerX - radius, centerY, centerX + radius, centerY);
-
-        drawShipPosition(gc, centerX, centerY, radius, 18.0, 110.0);
     }
 
-    private void drawShipPosition(GraphicsContext gc, double centerX, double centerY,
-                                  double maxRadius, double speed, double angle) {
-        double rad = Math.toRadians(angle);
-        double r = maxRadius * (speed / 25.0);
-        double pointX = centerX + r * Math.cos(rad);
-        double pointY = centerY - r * Math.sin(rad);
+    private void drawShipPosition(double x, double y) {
+        double centerX = 450;
+        double centerY = 460;
+
+        double maxRadius = 380;
+        double canvasX = centerX + x * (maxRadius / 10.0);
+        double canvasY = centerY - y * (maxRadius / 10.0);
 
         gc.setFill(Color.RED);
-        gc.fillOval(pointX - 7, pointY - 7, 14, 14);
+        gc.fillOval(canvasX - 7, canvasY - 7, 14, 14);
 
         gc.setStroke(Color.WHITE);
         gc.setLineWidth(1.8);
-        gc.strokeLine(pointX - 5, pointY - 5, pointX + 5, pointY + 5);
-        gc.strokeLine(pointX + 5, pointY - 5, pointX - 5, pointY + 5);
+        gc.strokeLine(canvasX - 5, canvasY - 5, canvasX + 5, canvasY + 5);
+        gc.strokeLine(canvasX + 5, canvasY - 5, canvasX - 5, canvasY + 5);
 
         gc.setStroke(Color.BLACK);
         gc.setLineWidth(1);
-        gc.strokeOval(pointX - 7, pointY - 7, 14, 14);
+        gc.strokeOval(canvasX - 7, canvasY - 7, 14, 14);
     }
 
     private VBox createFunctionChartsArea() {
@@ -244,63 +249,57 @@ public class MainTab{
         HBox chartsArea = new HBox(15);
         chartsArea.setAlignment(Pos.CENTER);
 
-        VBox chart1Container = createChartContainer(
-                createFunctionChart("θ (градусы)", "μ", "Амплитуда бортовой качки θ")
-        );
+        chartTheta = createEmptyChart("θ (градусы)", "μ", "Амплитуда бортовой качки θ");
+        chartPsi = createEmptyChart("ψ (градусы)", "μ", "Амплитуда килевой качки ψ");
+        chartMainRes = createEmptyChart("σ/ωθ", "μ", "Основной резонанс σ/ωθ");
+        chartParamRes = createEmptyChart("σ/ωθ", "μ", "Параметрический резонанс σ/ωθ");
+        chartMainPitch = createEmptyChart("σ/ωψ", "μ", "Основной резонанс σ/ωψ");
 
-        VBox chart2Container = createChartContainer(
-                createFunctionChart("ψ (градусы)", "μ", "Амплитуда килевой качки ψ")
-        );
+        VBox chart1Container = createChartContainer(chartTheta);
+        VBox chart2Container = createChartContainer(chartPsi);
+        VBox chart3Container = createChartContainer(chartMainRes);
+        VBox chart4Container = createChartContainer(chartParamRes);
+        VBox chart5Container = createChartContainer(chartMainPitch);
 
-        VBox chart3Container = createChartContainer(
-                createFunctionChart("σ/ωθ", "μ", "Основной резонанс σ/ωθ")
-        );
-
-        VBox chart4Container = createChartContainer(
-                createFunctionChart("σ/ωθ", "μ", "Параметрический резонанс σ/ωθ")
-        );
-
-        chartsArea.getChildren().addAll(chart1Container, chart2Container, chart3Container, chart4Container);
+        chartsArea.getChildren().addAll(chart1Container, chart2Container, chart3Container,
+                chart4Container, chart5Container);
 
         mainContainer.getChildren().addAll(title, chartsArea);
         return mainContainer;
     }
 
-    private VBox createChartContainer(LineChart<Number, Number> chart) {
-        VBox container = new VBox(5);
-        container.setAlignment(Pos.CENTER);
-        chart.setPrefSize(280, 250);
-        container.getChildren().add(chart);
-        return container;
-    }
-
-    private LineChart<Number, Number> createFunctionChart(String xLabel, String yLabel, String titleText) {
+    private LineChart<Number, Number> createEmptyChart(String xLabel, String yLabel, String titleText) {
         NumberAxis xAxis = new NumberAxis();
-        NumberAxis yAxis = new NumberAxis();
+        NumberAxis yAxis = new NumberAxis(0, 1.1, 0.2);
         xAxis.setLabel(xLabel);
         yAxis.setLabel(yLabel);
+
+        xAxis.setTickLabelFont(Font.font("Arial", 9));
+        yAxis.setTickLabelFont(Font.font("Arial", 9));
 
         LineChart<Number, Number> chart = new LineChart<>(xAxis, yAxis);
         chart.setTitle(titleText);
         chart.setLegendVisible(false);
         chart.setCreateSymbols(false);
         chart.setAnimated(false);
+        chart.setPrefSize(280, 250);
 
-        XYChart.Series<Number, Number> series = new XYChart.Series<>();
-        for (int i = 0; i <= 10; i++) {
-            double x = i;
-            double y = Math.exp(-Math.pow(x - 5, 2) / 8);
-            series.getData().add(new XYChart.Data<>(x, y));
-        }
-
-        chart.getData().add(series);
+        chart.setCache(true);
+        chart.setCacheHint(CacheHint.SPEED);
 
         return chart;
     }
 
+    private VBox createChartContainer(LineChart<Number, Number> chart) {
+        VBox container = new VBox(5);
+        container.setAlignment(Pos.CENTER);
+        container.getChildren().add(chart);
+        return container;
+    }
+
     private VBox createResultsArea() {
         VBox resultsArea = new VBox(10);
-        resultsArea.setPrefWidth(300);
+        resultsArea.setPrefWidth(350);
         resultsArea.setAlignment(Pos.TOP_LEFT);
         resultsArea.setPadding(new Insets(10));
 
@@ -309,23 +308,28 @@ public class MainTab{
         title.setStyle("-fx-font-weight: bold;");
 
         resultsTextArea = new TextArea();
-        resultsTextArea.setPrefHeight(300);
+        resultsTextArea.setPrefHeight(500);
         resultsTextArea.setEditable(false);
         resultsTextArea.setWrapText(true);
         resultsTextArea.setStyle("-fx-font-family: 'Consolas'; -fx-font-size: 12px;");
-        resultsTextArea.setText("Результаты расчетов будут отображены здесь...");
+        resultsTextArea.setText("Для получения результатов:\n1. Введите параметры корабля\n2. Нажмите 'Произвести расчеты'\n\nРезультаты анализа появятся здесь.");
 
         VBox buttonsBox = new VBox(8);
         buttonsBox.setAlignment(Pos.CENTER_LEFT);
 
-        Button saveResultsButton = new Button("Провести анализ");
-        Button exportChartButton =  new Button("Расчет по Байесу");
-        Button generateReportButton =  new Button("Расчет по Шортлиффу");
+        Button analyzeButton = new Button("Провести анализ");
+        analyzeButton.setOnAction(e -> performAnalysis());
+
+        Button bayesButton = new Button("Расчет по Байесу");
+        bayesButton.setOnAction(e -> showBayesCalculation());
+
+        Button shortliffButton = new Button("Расчет по Шортлиффу");
+        shortliffButton.setOnAction(e -> showShortliffCalculation());
 
         buttonsBox.getChildren().addAll(
-                saveResultsButton,
-                exportChartButton,
-                generateReportButton
+                analyzeButton,
+                bayesButton,
+                shortliffButton
         );
 
         resultsArea.getChildren().addAll(title, resultsTextArea, buttonsBox);
@@ -346,27 +350,148 @@ public class MainTab{
                     Float.parseFloat(pitchingAmplitudeTextField.getText())
             );
 
-            if (calculator != null) {
-                calculator.calculate(params);
-                updateCharts();
+            if (calculator == null) {
+                calculator = new Calculator();
             }
+
+            calculator.calculate(params);
+            updateCharts();
+
+            performAnalysis();
 
         } catch (NumberFormatException e) {
             showAlert("Ошибка", "Некорректные данные", "Пожалуйста, введите корректные числовые значения.");
+        } catch (Exception e) {
+            showAlert("Ошибка", "Ошибка расчета", e.getMessage());
         }
     }
 
     private void updateCharts() {
-        double speed = Float.parseFloat(shipSpeedTextField.getText());
-        double angle = Float.parseFloat(headingAngleTextField.getText());
+        if (calculator == null) return;
 
-        drawHalfPolarDiagram(gc, 350, 175, 160);
-        drawShipPosition(gc, 350, 175, 160, speed, angle);
+        try {
+            updatePolarDiagram();
 
-        speedInfoText.setText(String.format("V = %.1f уз", speed));
-        angleInfoText.setText(String.format("φ = %.1f°", angle));
+            updateMembershipCharts();
+
+        } catch (Exception e) {
+            showAlert("Ошибка", "Ошибка обновления графиков", e.getMessage());
+        }
     }
 
+    private void updatePolarDiagram() {
+        if (calculator == null) return;
+
+        Calculator.PolarDiagramData data = calculator.getPolarDiagramData();
+
+        drawEmptyPolarDiagram();
+
+        if (data != null) {
+            drawShipPosition(data.x, data.y);
+
+            speedInfoText.setText(String.format("V = %.1f уз", data.speed));
+            angleInfoText.setText(String.format("φ = %.1f°", data.courseAngle));
+        }
+    }
+
+    private void updateMembershipCharts() {
+        if (calculator == null) return;
+
+        updateChart(chartTheta, calculator.getThetaChartData(), Color.BLUE);
+        updateChart(chartPsi, calculator.getPsiChartData(), Color.GREEN);
+        updateChart(chartMainRes, calculator.getMainResonanceChartData(), Color.RED);
+        updateChart(chartParamRes, calculator.getParametricResonanceChartData(), Color.ORANGE);
+        updateChart(chartMainPitch, calculator.getMainPitchResonanceChartData(), Color.PURPLE);
+    }
+
+    private void updateChart(LineChart<Number, Number> chart, List<AICalculator.ChartData> data, Color color) {
+        if (data == null || data.isEmpty()) {
+            return;
+        }
+
+        chart.getData().clear();
+
+        XYChart.Series<Number, Number> series = new XYChart.Series<>();
+
+        int step = Math.max(1, data.size() / 50);
+        for (int i = 0; i < data.size(); i += step) {
+            AICalculator.ChartData point = data.get(i);
+            series.getData().add(new XYChart.Data<>(point.x, point.y));
+        }
+
+        chart.getData().add(series);
+
+        if (!series.getData().isEmpty()) {
+            Node line = series.getNode().lookup(".chart-series-line");
+            if (line != null) {
+                String colorHex = String.format("#%02X%02X%02X",
+                        (int)(color.getRed() * 255),
+                        (int)(color.getGreen() * 255),
+                        (int)(color.getBlue() * 255));
+                line.setStyle("-fx-stroke: " + colorHex + "; -fx-stroke-width: 2px;");
+            }
+        }
+    }
+
+    private void performAnalysis() {
+        if (calculator == null || calculator.getResults() == null) {
+            resultsTextArea.setText("Сначала выполните расчет параметров!\n\nНажмите 'Произвести расчеты' после ввода параметров.");
+            return;
+        }
+
+        AICalculator.FullAnalysisResult results = calculator.getResults();
+        resultsTextArea.setText(results.generateReport());
+    }
+
+    private void showBayesCalculation() {
+        if (calculator == null || calculator.getResults() == null) {
+            resultsTextArea.setText("Сначала выполните расчет параметров!\n\nНажмите 'Произвести расчеты' после ввода параметров.");
+            return;
+        }
+
+        AICalculator.FullAnalysisResult results = calculator.getResults();
+
+        String bayesText = "=== РАСЧЕТ ПО ФОРМУЛЕ БАЙЕСА ===\n\n" +
+                "Формула: P(H) = P(H|E)*P(E) + P(H|¬E)*P(¬E)\n\n" +
+                "Для первого варианта:\n" +
+                "P(E) = 0.76 (вероятность сильной качки)\n" +
+                "P(H|E) = 0.90 (вероятность резонанса при сильной качки)\n" +
+                "P(H|¬E) = 0.01 (вероятность резонанса без сильной качки)\n" +
+                "P(¬E) = 1 - P(E) = 0.24\n\n" +
+                String.format("P(H) = %.2f*%.2f + %.2f*%.2f\n",
+                        0.90f, 0.76f, 0.01f, 0.24f) +
+                String.format("P(H) = %.4f\n\n", results.bayesianProbability) +
+                "Интерпретация:\n" +
+                "P(H) > 0.7 - высокая вероятность резонанса\n" +
+                "0.4 < P(H) < 0.7 - средняя вероятность\n" +
+                "P(H) < 0.4 - низкая вероятность";
+
+        resultsTextArea.setText(bayesText);
+    }
+
+    private void showShortliffCalculation() {
+        if (calculator == null || calculator.getResults() == null) {
+            resultsTextArea.setText("Сначала выполните расчет параметров!\n\nНажмите 'Произвести расчеты' после ввода параметров.");
+            return;
+        }
+
+        AICalculator.FullAnalysisResult results = calculator.getResults();
+
+        String shortliffText = "=== РАСЧЕТ ПО ФОРМУЛЕ ШОРТЛИФФА ===\n\n" +
+                "Формула: МД(H|E1,E2) = МД(H|E1) + МД(H|E2)*(1 - МД(H|E1))\n\n" +
+                "Для первого варианта:\n" +
+                "МД(H|E1) = 0.90 (мера доверия по амплитуде)\n" +
+                "МД(H|E2) = 0.97 (мера доверия по частоте)\n\n" +
+                String.format("МД(H) = %.2f + %.2f*(1 - %.2f)\n",
+                        0.90f, 0.97f, 0.90f) +
+                String.format("МД(H) = %.4f\n\n", results.shortliffConfidence) +
+                "Интерпретация:\n" +
+                "0.8-1.0 - высокая уверенность в резонансе\n" +
+                "0.5-0.8 - средняя уверенность\n" +
+                "0.0-0.5 - низкая уверенность";
+
+        resultsTextArea.setText(shortliffText);
+    }
 
     private void showAlert(String title, String header, String content) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
